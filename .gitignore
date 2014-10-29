@@ -1,0 +1,5 @@
+# Compiled files
+*.o
+train_data/annotate
+bin/train
+bin/recognize
