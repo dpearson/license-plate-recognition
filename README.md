@@ -10,6 +10,10 @@ This project was originally a term project for Dr. Harry Wechsler's CS482 Comput
 * Tesseract
 * A C++ compiler
 
+On a recent version of Ubuntu, these dependencies can be installed by running:
+
+	sudo apt-get install build-essential libopencv-dev libtesseract-dev
+
 ### Building ###
 
 	cd src
