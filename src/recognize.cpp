@@ -126,9 +126,18 @@ int main(int argc, const char *argv[]) {
 	imshow("result", plate);
 	waitKey();
 	imwrite("out_plate.png", plate);
+
+	// TODO: Remove me maybe?
 	Mat plate_area = gray(Rect(max_x1 - 64, max_y1 - 32, max_x2 - max_x1 + 64, max_y2 - max_y1 + 64));
-	char *plate_text = get_plate_text(&plate_area);
+
+	// OCR the plate image
+	char *plate_text = get_plate_text(&plate);
+
+	// And print out the resulting text
 	printf("%s\n", plate_text);
+
+	// Then free the plate text
+	delete [] plate_text;
 
 	return 0;
 }
