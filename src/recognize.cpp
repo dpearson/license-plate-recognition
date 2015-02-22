@@ -3,7 +3,7 @@
 //  license-plate-recognition
 //
 //  Created by David Pearson on 10/21/14.
-//  Copyright (c) 2014 David Pearson. All rights reserved.
+//  Copyright (c) 2014-2015 David Pearson. All rights reserved.
 //
 
 #include <dirent.h>
@@ -18,6 +18,9 @@
 #include "util.h"
 
 using namespace cv;
+
+//#define DEBUG true
+#define SHOW_IMAGE true
 
 /* Main method
 */
@@ -46,13 +49,10 @@ int main(int argc, const char *argv[]) {
 	Mat edges(img.cols, img.rows, img.type());
 	Canny(blurred, edges, 30, 100);
 
-	// Perform a bunch of morphological operations and find contours
-	Mat struct_elem = getStructuringElement(MORPH_RECT, Size(21, 21));
-	morphologyEx(edges, edges, MORPH_CLOSE, struct_elem, Point(-1, -1), 1);
-	struct_elem = getStructuringElement(MORPH_RECT, Size(20, 20));
-	erode(edges, edges, struct_elem);
+	// Find contours
 	vector<vector<Point> > contours;
-	findContours(edges, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+	vector<Point> points;
+	findContours(edges, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
 	// Load the already-trained classifier
 	CvNormalBayesClassifier *classifier = new CvNormalBayesClassifier();
@@ -67,13 +67,22 @@ int main(int argc, const char *argv[]) {
 
 	// Loop through all of the contours
 	for (int i = 0; i < contours.size(); i++) {
+		// Approximate a polygonal curve for the contour
+		vector<Point> contour = contours[i];
+		approxPolyDP(contour, points, arcLength(contour, true) * 0.01, true);
+
+		// A license plate should have 4 corner points, but we'll settle for 4-6 points
+		if (points.size() < 4 || points.size() > 6) {
+			continue;
+		}
+
+		// Define coordinates for the bounding box
 		int x_min = gray.cols;
 		int x_max = 0;
 		int y_min = gray.rows;
 		int y_max = 0;
 
 		// Find the bounding box
-		vector<Point> contour = contours[i];
 		for (int j = 0; j < contour.size(); j++) {
 			Point p = contour[j];
 			x_min = MIN(p.x, x_min);
@@ -91,9 +100,13 @@ int main(int argc, const char *argv[]) {
 			continue;
 		}
 
-		/*namedWindow("edges");
-		imshow("edges", gray(Rect(x_min, y_min, width, height)));
-		waitKey();*/
+		// Show the image if debug mode is enabled
+		#ifdef DEBUG
+			namedWindow("edges");
+			imshow("edges", gray(Rect(x_min, y_min, width, height)));
+			waitKey();
+		#endif
+
 		// Perform statistical classification based on the HOG
 		int num_tested = 0;
 		int num_pos = 0;
@@ -110,7 +123,11 @@ int main(int argc, const char *argv[]) {
 
 		// Update the best known region if necessary
 		double ratio = 1.0 * num_pos / num_tested;
-		printf("%f\n", ratio);
+
+		#ifdef DEBUG
+			printf("%f\n", ratio);
+		#endif
+
 		if (ratio > max_ratio) {
 			max_ratio = ratio;
 			max_x1 = x_min;
@@ -120,11 +137,17 @@ int main(int argc, const char *argv[]) {
 		}
 	}
 
-	// Show the best known region
+	// Isolate the best known region
 	Mat plate = gray(Rect(max_x1, max_y1, max_x2 - max_x1, max_y2 - max_y1));
-	namedWindow("result");
-	imshow("result", plate);
-	waitKey();
+
+	// Show the image if necessary
+	#ifdef SHOW_IMAGE
+		namedWindow("result");
+		imshow("result", plate);
+		waitKey();
+	#endif
+
+	// But write out the image either way
 	imwrite("out_plate.png", plate);
 
 	// TODO: Remove me maybe?

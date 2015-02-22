@@ -3,7 +3,7 @@
 //  license-plate-recognition
 //
 //  Created by David Pearson on 10/21/14.
-//  Copyright (c) 2014 David Pearson. All rights reserved.
+//  Copyright (c) 2014-2015 David Pearson. All rights reserved.
 //
 
 #include <dirent.h>
@@ -50,6 +50,18 @@ int main(int argc, const char *argv[]) {
 			// Load the annotation
 			annotation *an = annotation_load(fname);
 
+			// Get the bounding coordinates of the license plate
+			int left = MIN(an->top_left.x, an->bottom_left.x);
+			int right = MAX(an->top_right.x, an->bottom_right.x);
+			int top = MIN(an->top_left.y, an->top_right.y);
+			int bottom = MAX(an->bottom_left.y, an->bottom_right.y);
+
+			// And calculate the size of the plate
+			int plate_width = right - left;
+			int plate_height = bottom - top;
+
+			Rect plate = Rect(left, top, plate_width, plate_height);
+
 			// Ignore images that don't have license plates
 			if (strcmp(an->plate_number, "N/A") != 0) {
 				printf("%s\n", fname);
@@ -57,103 +69,89 @@ int main(int argc, const char *argv[]) {
 				// Convert the image to grayscale
 				Mat gray(img.cols, img.rows, img.type());
 				cvtColor(img, gray, CV_BGR2GRAY);
-				//equalizeHist(gray, gray);
+				imwrite("out_gray.png", gray);
 
-				// Get the bounding coordinates of the license plate
-				int left = MIN(an->top_left.x, an->bottom_left.x);
-				int right = MAX(an->top_right.x, an->bottom_right.x);
-				int top = MIN(an->top_left.y, an->top_right.y);
-				int bottom = MAX(an->bottom_left.y, an->bottom_right.y);
+				// Then resize
+				resize(gray, gray, Size(gray.cols * 2.35, gray.rows * 2.35));
 
-				// And calculate the size of the plate
-				int width = right - left;
-				int height = bottom - top;
+				// Blur the image...
+				Mat blurred(img.cols, img.rows, img.type());
+				GaussianBlur(gray, blurred, Size(11, 11), 0, 0, BORDER_DEFAULT);
 
+				// Before finding edges
+				Mat edges(img.cols, img.rows, img.type());
+				Canny(blurred, edges, 30, 100);
 
-				// Grab the license plate and scale it to a standard size
-				//Mat license_plate = gray(Rect(left - 5, top - 5, width + 10, height + 10));
-				//resize(license_plate, license_plate, Size(128, 64));
-				Mat license_plate = gray(Rect(left, bottom - 64, 128, 64));
-				int count = 0;
-				for (int y = MAX(top - 32, 0); y < MIN(bottom, gray.rows - 32); y += 5) {
-					for (int x = MAX(left - 64, 0); x < MIN(right, gray.cols - 64); x += 5) {
-						Mat window = gray(Rect(x, y, 128, 64));
-						// Calculate the HOG and add it to the training data matrix
-						train_data.push_back(calcHOG(&window, 8, 8));
+				// Find contours
+				vector<vector<Point> > contours;
+				vector<Point> points;
+				findContours(edges, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-						// Then set the response value
-						Mat response_row(1, 1, CV_32F);
-						response_row.at<float>(0, 0, 0) = 0.0;
-						responses.push_back(response_row);
+				// Loop through all of the contours
+				for (int i = 0; i < contours.size(); i++) {
+					// Approximate a polygonal curve for the contour
+					vector<Point> contour = contours[i];
+					approxPolyDP(contour, points, arcLength(contour, true) * 0.01, true);
 
-						count++;
+					// A license plate should have 4 corner points, but we'll settle for 4-6 points
+					if (points.size() < 4 || points.size() > 6) {
+						continue;
+					}
+
+					// Define coordinates for the bounding box
+					int x_min = gray.cols;
+					int x_max = 0;
+					int y_min = gray.rows;
+					int y_max = 0;
+
+					// Find the bounding box
+					for (int j = 0; j < contour.size(); j++) {
+						Point p = contour[j];
+						x_min = MIN(p.x, x_min);
+						x_max = MAX(p.x, x_max);
+						y_min = MIN(p.y, y_min);
+						y_max = MAX(p.y, y_max);
+					}
+
+					// Calculate the size of the bounding box
+					int width = x_max - x_min;
+					int height = y_max - y_min;
+
+					// Then throw out areas that are too small
+					if (width < 100 || height < 60) {
+						continue;
+					}
+
+					// Perform statistical classification based on the HOG
+					int num_tested = 0;
+					int num_pos = 0;
+					for (int y = MAX(y_min - 64, 0); y < MIN(y_max, gray.rows - 64); y += 5) {
+						for (int x = MAX(x_min - 128, 0); x < MIN(x_max, gray.cols - 128); x += 5) {
+							// Grab the window
+							Mat window = gray(Rect(x, y, 128, 64));
+
+							// Then calculate a HOG vector for use as a feature vector
+							train_data.push_back(calcHOG(&window, 8, 8));
+
+							// Pick and set the correct response
+							Mat response_row(1, 1, CV_32F);
+							if (plate.contains(Point(x, y))) {
+								response_row.at<float>(0, 0, 0) = 0.0;
+							} else {
+								response_row.at<float>(0, 0, 0) = 1.0;
+							}
+							responses.push_back(response_row);
+						}
 					}
 				}
-
-				for (int i = 0; i < count - 4; i++) {
-					// Find a random area of the image to use as a negative data point
-					int x = rand() % (gray.cols - 128);
-					int y = rand() % (gray.rows - 64);
-
-					while (x >= (left - 128) && x <= right) {
-						x = rand() % (gray.cols - 128);
-					}
-
-					while (y >= (top - 148) && x <= bottom) {
-						y = rand() % (gray.rows - 64);
-					}
-
-					// Grab the negative window and add its HOG to the training data
-					Mat negative = gray(Rect(x, y, 128, 64));
-					train_data.push_back(calcHOG(&negative, 8, 8));
-
-					// Then add the proper response to the list
-					Mat response_row2(1, 1, CV_32F);
-					response_row2.at<float>(0, 0, 0) = 1.0;
-					responses.push_back(response_row2);
-				}
-
-				// Grab the negative window and add its HOG to the training data
-				Mat negative = gray(Rect(left - 128, top, 128, 64));
-				train_data.push_back(calcHOG(&negative, 8, 8));
-
-				// Then add the proper response to the list
-				Mat response_row2(1, 1, CV_32F);
-				response_row2.at<float>(0, 0, 0) = 1.0;
-				responses.push_back(response_row2);
-
-				// Grab the negative window and add its HOG to the training data
-				Mat negative3 = gray(Rect(right, top, 128, 64));
-				train_data.push_back(calcHOG(&negative3, 8, 8));
-
-				// Then add the proper response to the list
-				Mat response_row3(1, 1, CV_32F);
-				response_row3.at<float>(0, 0, 0) = 1.0;
-				responses.push_back(response_row3);
-
-				// Grab the negative window and add its HOG to the training data
-				Mat negative4 = gray(Rect(left, top - 64, 128, 64));
-				train_data.push_back(calcHOG(&negative4, 8, 8));
-
-				// Then add the proper response to the list
-				Mat response_row4(1, 1, CV_32F);
-				response_row4.at<float>(0, 0, 0) = 1.0;
-				responses.push_back(response_row4);
-
-				// Grab the negative window and add its HOG to the training data
-				Mat negative5 = gray(Rect(left, bottom, 128, 64));
-				train_data.push_back(calcHOG(&negative5, 8, 8));
-
-				// Then add the proper response to the list
-				Mat response_row5(1, 1, CV_32F);
-				response_row5.at<float>(0, 0, 0) = 1.0;
-				responses.push_back(response_row5);
 			}
 
 			// Clean up
 			annotation_free(an);
 		}
 	}
+
+	// Close the directory
 	closedir(directory);
 
 	// Train and save classifier
