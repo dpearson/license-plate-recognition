@@ -50,4 +50,4 @@ The following third-party image datasets were used:
        ---------
        R. Fergus 10/4/03
 
-All other code is Copyright 2014 David Pearson; all rights are reserved.
+All other code is Copyright 2014-2015 David Pearson; all rights are reserved.
