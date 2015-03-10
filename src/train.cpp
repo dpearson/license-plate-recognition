@@ -13,6 +13,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "candidate_regions.h"
 #include "hog.h"
 #include "util.h"
 
@@ -71,7 +72,30 @@ int main(int argc, const char *argv[]) {
 				cvtColor(img, gray, CV_BGR2GRAY);
 				imwrite("out_gray.png", gray);
 
-				// Then resize
+				vector<Rect> candidate_regions = find_candidate_regions(gray);
+
+				for (int i = 0; i < candidate_regions.size(); i++) {
+					Rect region = candidate_regions.at(i);
+					for (int y = MAX(region.y - 64, 0); y < MIN(region.y + region.height, gray.rows - 64); y += 5) {
+						for (int x = MAX(region.x - 128, 0); x < MIN(region.x + region.width, gray.cols - 128); x += 5) {
+							// Grab the window
+							Mat window = gray(Rect(x, y, 128, 64));
+
+							// Then calculate a HOG vector for use as a feature vector
+							train_data.push_back(calcHOG(&window, 8, 8));
+
+							// Pick and set the correct response
+							Mat response_row(1, 1, CV_32F);
+							if (plate.contains(Point(x, y))) {
+								response_row.at<float>(0, 0, 0) = 0.0;
+							} else {
+								response_row.at<float>(0, 0, 0) = 1.0;
+							}
+							responses.push_back(response_row);
+						}
+					}
+				}
+				/*// Then resize
 				resize(gray, gray, Size(gray.cols * 2.35, gray.rows * 2.35));
 
 				// Blur the image...
@@ -143,7 +167,7 @@ int main(int argc, const char *argv[]) {
 							responses.push_back(response_row);
 						}
 					}
-				}
+				}*/
 			}
 
 			// Clean up

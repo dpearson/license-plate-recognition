@@ -13,13 +13,14 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "candidate_regions.h"
 #include "hog.h"
 #include "ocr.h"
 #include "util.h"
 
 using namespace cv;
 
-//#define DEBUG true
+#define DEBUG true
 #define SHOW_IMAGE true
 
 /* Main method
@@ -38,81 +39,27 @@ int main(int argc, const char *argv[]) {
 	cvtColor(img, gray, CV_BGR2GRAY);
 	imwrite("out_gray.png", gray);
 
-	// Then resize
-	resize(gray, gray, Size(gray.cols * 2.35, gray.rows * 2.35));
-
-	// Blur the image...
-	Mat blurred(img.cols, img.rows, img.type());
-	GaussianBlur(gray, blurred, Size(11, 11), 0, 0, BORDER_DEFAULT);
-
-	// Before finding edges
-	Mat edges(img.cols, img.rows, img.type());
-	Canny(blurred, edges, 30, 100);
-
-	// Find contours
-	vector<vector<Point> > contours;
-	vector<Point> points;
-	findContours(edges, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
 	// Load the already-trained classifier
 	CvNormalBayesClassifier *classifier = new CvNormalBayesClassifier();
 	classifier->load("plate_classifier.xml");
 
 	// Track the best known blob
 	double max_ratio = -1.0;
-	int max_x1 = -1;
-	int max_x2 = -1;
-	int max_y1 = -1;
-	int max_y2 = -1;
+	Rect max_region;
 
-	// Loop through all of the contours
-	for (int i = 0; i < contours.size(); i++) {
-		// Approximate a polygonal curve for the contour
-		vector<Point> contour = contours[i];
-		approxPolyDP(contour, points, arcLength(contour, true) * 0.01, true);
+	vector<Rect> candidate_regions = find_candidate_regions(img);
 
-		// A license plate should have 4 corner points, but we'll settle for 4-6 points
-		if (points.size() < 4 || points.size() > 6) {
-			continue;
-		}
-
-		// Define coordinates for the bounding box
-		int x_min = gray.cols;
-		int x_max = 0;
-		int y_min = gray.rows;
-		int y_max = 0;
-
-		// Find the bounding box
-		for (int j = 0; j < contour.size(); j++) {
-			Point p = contour[j];
-			x_min = MIN(p.x, x_min);
-			x_max = MAX(p.x, x_max);
-			y_min = MIN(p.y, y_min);
-			y_max = MAX(p.y, y_max);
-		}
-
-		// Calculate the size of the bounding box
-		int width = x_max - x_min;
-		int height = y_max - y_min;
-
-		// Then throw out areas that are too small
-		if (width < 100 || height < 60) {
-			continue;
-		}
-
-		// Show the image if debug mode is enabled
-		#ifdef DEBUG
-			namedWindow("edges");
-			imshow("edges", gray(Rect(x_min, y_min, width, height)));
-			waitKey();
-		#endif
+	for (int i = 0; i < candidate_regions.size(); i++) {
+		Rect region = candidate_regions.at(i);
 
 		// Perform statistical classification based on the HOG
 		int num_tested = 0;
 		int num_pos = 0;
-		for (int y = MAX(y_min - 64, 0); y < MIN(y_max, gray.rows - 64); y += 5) {
-			for (int x = MAX(x_min - 128, 0); x < MIN(x_max, gray.cols - 128); x += 5) {
+		for (int y = MAX(region.y - 64, 0); y < MIN(region.y + region.height, gray.rows - 64); y += 5) {
+			for (int x = MAX(region.x - 128, 0); x < MIN(region.x + region.width, gray.cols - 128); x += 5) {
+				// Grab the window
 				Mat window = gray(Rect(x, y, 128, 64));
+
 				float response = classifier->predict(calcHOG(&window, 8, 8));
 				if (response == 0.0) {
 					num_pos++;
@@ -130,15 +77,14 @@ int main(int argc, const char *argv[]) {
 
 		if (ratio > max_ratio) {
 			max_ratio = ratio;
-			max_x1 = x_min;
-			max_x2 = x_max;
-			max_y1 = y_min;
-			max_y2 = y_max;
+			max_region = region;
 		}
 	}
 
 	// Isolate the best known region
-	Mat plate = gray(Rect(max_x1, max_y1, max_x2 - max_x1, max_y2 - max_y1));
+	Mat plate = gray(max_region);
+
+	printf("%f\n", ((float)plate.rows) / plate.cols);
 
 	// Show the image if necessary
 	#ifdef SHOW_IMAGE
@@ -149,9 +95,6 @@ int main(int argc, const char *argv[]) {
 
 	// But write out the image either way
 	imwrite("out_plate.png", plate);
-
-	// TODO: Remove me maybe?
-	Mat plate_area = gray(Rect(max_x1 - 64, max_y1 - 32, max_x2 - max_x1 + 64, max_y2 - max_y1 + 64));
 
 	// OCR the plate image
 	char *plate_text = get_plate_text(&plate);

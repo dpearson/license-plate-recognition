@@ -22,6 +22,9 @@ char *get_plate_text(Mat *img_ptr) {
 	// at the license plate number
 	// TODO: FIXME
 	img = img(Rect(0, img.rows / 4, img.cols, img.rows / 2));
+	/*namedWindow("plate");
+	imshow("plate", img);
+	waitKey();*/
 
 	// Perform thresholding to get a clean image for Tesseract
 	threshold(img, img, 150, 255, CV_THRESH_BINARY);
@@ -43,6 +46,7 @@ char *get_plate_text(Mat *img_ptr) {
 
 	// Grab the text
 	char *plate_text = t->GetUTF8Text();
+	printf("%s\n", plate_text);
 
 	// Then dispose of the Tesseract API instance
 	t->End();
