@@ -14,6 +14,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "candidate_regions.h"
+#include "constants.h"
 #include "hog.h"
 #include "util.h"
 
@@ -72,14 +73,19 @@ int main(int argc, const char *argv[]) {
 				cvtColor(img, gray, CV_BGR2GRAY);
 				imwrite("out_gray.png", gray);
 
+				// Find candidate regions
 				vector<Rect> candidate_regions = find_candidate_regions(gray);
 
+				// Then iterate through them
 				for (int i = 0; i < candidate_regions.size(); i++) {
+					// Grab the current region
 					Rect region = candidate_regions.at(i);
-					for (int y = MAX(region.y - 64, 0); y < MIN(region.y + region.height, gray.rows - 64); y += 5) {
-						for (int x = MAX(region.x - 128, 0); x < MIN(region.x + region.width, gray.cols - 128); x += 5) {
+
+					// Perform a raster scan through the region
+					for (int y = MAX(region.y - HOG_WINDOW_HEIGHT, 0); y < MIN(region.y + region.height, gray.rows - HOG_WINDOW_HEIGHT); y += 5) {
+						for (int x = MAX(region.x - HOG_WINDOW_WIDTH, 0); x < MIN(region.x + region.width, gray.cols - HOG_WINDOW_WIDTH); x += 5) {
 							// Grab the window
-							Mat window = gray(Rect(x, y, 128, 64));
+							Mat window = gray(Rect(x, y, HOG_WINDOW_WIDTH, HOG_WINDOW_HEIGHT));
 
 							// Then calculate a HOG vector for use as a feature vector
 							train_data.push_back(calcHOG(&window, 8, 8));

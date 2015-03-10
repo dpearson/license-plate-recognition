@@ -14,6 +14,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "candidate_regions.h"
+#include "constants.h"
 #include "hog.h"
 #include "ocr.h"
 #include "util.h"
@@ -47,19 +48,23 @@ int main(int argc, const char *argv[]) {
 	double max_ratio = -1.0;
 	Rect max_region;
 
+	// Find candidate regions
 	vector<Rect> candidate_regions = find_candidate_regions(img);
 
+	// Then iterate through them
 	for (int i = 0; i < candidate_regions.size(); i++) {
+		// Grab the current region
 		Rect region = candidate_regions.at(i);
 
 		// Perform statistical classification based on the HOG
 		int num_tested = 0;
 		int num_pos = 0;
-		for (int y = MAX(region.y - 64, 0); y < MIN(region.y + region.height, gray.rows - 64); y += 5) {
-			for (int x = MAX(region.x - 128, 0); x < MIN(region.x + region.width, gray.cols - 128); x += 5) {
+		for (int y = MAX(region.y - HOG_WINDOW_HEIGHT, 0); y < MIN(region.y + region.height, gray.rows - HOG_WINDOW_HEIGHT); y += 5) {
+			for (int x = MAX(region.x - HOG_WINDOW_WIDTH, 0); x < MIN(region.x + region.width, gray.cols - HOG_WINDOW_WIDTH); x += 5) {
 				// Grab the window
-				Mat window = gray(Rect(x, y, 128, 64));
+				Mat window = gray(Rect(x, y, HOG_WINDOW_WIDTH, HOG_WINDOW_HEIGHT));
 
+				// Predict the response for the window
 				float response = classifier->predict(calcHOG(&window, 8, 8));
 				if (response == 0.0) {
 					num_pos++;
@@ -83,8 +88,6 @@ int main(int argc, const char *argv[]) {
 
 	// Isolate the best known region
 	Mat plate = gray(max_region);
-
-	printf("%f\n", ((float)plate.rows) / plate.cols);
 
 	// Show the image if necessary
 	#ifdef SHOW_IMAGE
