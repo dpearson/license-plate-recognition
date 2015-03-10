@@ -13,3 +13,6 @@
 
 #define HOG_WINDOW_WIDTH  128
 #define HOG_WINDOW_HEIGHT 64
+
+#define HOG_CELLS 8
+#define HOG_BINS  8

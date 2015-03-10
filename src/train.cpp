@@ -88,7 +88,7 @@ int main(int argc, const char *argv[]) {
 							Mat window = gray(Rect(x, y, HOG_WINDOW_WIDTH, HOG_WINDOW_HEIGHT));
 
 							// Then calculate a HOG vector for use as a feature vector
-							train_data.push_back(calcHOG(&window, 8, 8));
+							train_data.push_back(calcHOG(&window, HOG_CELLS, HOG_BINS));
 
 							// Pick and set the correct response
 							Mat response_row(1, 1, CV_32F);

@@ -62,7 +62,7 @@ int main(int argc, const char *argv[]) {
 				Mat window = gray(Rect(x, y, HOG_WINDOW_WIDTH, HOG_WINDOW_HEIGHT));
 
 				// Predict the response for the window
-				float response = classifier->predict(calcHOG(&window, 8, 8));
+				float response = classifier->predict(calcHOG(&window, HOG_CELLS, HOG_BINS));
 				if (response == 0.0) {
 					num_pos++;
 				}
