@@ -21,9 +21,6 @@
 
 using namespace cv;
 
-#define DEBUG true
-#define SHOW_IMAGE true
-
 /* Main method
 */
 int main(int argc, const char *argv[]) {
