@@ -12,52 +12,78 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "util.h"
+
 using namespace cv;
 
 Mat marked;
 
-int find_length(Mat *edge_img, int x, int y, bool clear) {
+/* Find the length of the line segment containing the point (x, y).
+ *
+ * edge_img - A pointer to the binary image created from the Sobel result
+ * x - The x coordinate of the point
+ * y - The y coordinate of the point
+ * mark - A flag indicating whether to mark the pixels as visited
+ *
+ * Returns the length of the line segment.
+ */
+int find_length(Mat *edge_img, int x, int y, bool mark) {
+	// Dereference the image pointer
 	Mat edges = *edge_img;
 
+	// Initialize the length
 	int length = 0;
+
+	// And store the y coordinate
 	int y_orig = y;
 
+	// Iterate down the line segment
 	while (y < edges.rows) {
+		// Grab a 1x3 slice of the edge image
 		uint16_t left = edges.at<uint16_t>(y, x - 1, 0);
 		uint16_t center = edges.at<uint16_t>(y, x, 0);
 		uint16_t right = edges.at<uint16_t>(y, x + 1, 0);
 
+		// Bail if all three pixels are zero
 		if (left == 0 && center == 0 && right == 0) {
 			break;
 		}
 
-		if (clear) {
+		// Mark the pixels as visited if necessary
+		if (mark) {
 			marked.at<uint16_t>(y, x - 1, 0) = 1;
 			marked.at<uint16_t>(y, x, 0) = 1;
 			marked.at<uint16_t>(y, x + 1, 0) = 1;
 		}
 
+		// Increment the length and y coordinate
 		length++;
 		y++;
 	}
 
+	// Return to the original point
 	y = y_orig - 1;
 
+	// And go up instead
 	while (y >= 0) {
+		// Grab a 1x3 slice of the edge image
 		uint16_t left = edges.at<uint16_t>(y, x - 1, 0);
 		uint16_t center = edges.at<uint16_t>(y, x, 0);
 		uint16_t right = edges.at<uint16_t>(y, x + 1, 0);
 
+		// Bail if all three pixels are zero
 		if (left == 0 && center == 0 && right == 0) {
 			break;
 		}
 
-		if (clear) {
+		// Mark the pixels as visited if necessary
+		if (mark) {
 			edges.at<uint16_t>(y, x - 1, 0) = 0;
 			edges.at<uint16_t>(y, x, 0) = 0;
 			edges.at<uint16_t>(y, x + 1, 0) = 0;
 		}
 
+		// Increment the length and decrement the y coordinate
 		length++;
 		y--;
 	}
@@ -65,43 +91,52 @@ int find_length(Mat *edge_img, int x, int y, bool clear) {
 	return length;
 }
 
+/* Find the x coordinate and length of the line segment corresponding
+ * to the line segment containing the point (x, y).
+ *
+ * edge_img - A pointer to the binary image created from the Sobel result
+ * x - The x coordinate of the point
+ * y - The y coordinate of the point
+ * parallel_length - A pointer to an integer to store the line length in
+ *
+ * Returns the x coordinate of the line segment.
+ */
 int find_corresponding_line(Mat *edge_img, int x, int y, int *parallel_length) {
+	// Dereference
 	Mat edges = *edge_img;
 
+	// Find the length of the current line segment
 	int length = find_length(&edges, x, y, true);
+
+	// Throw out areas that are too small or big
 	if (length < 25 || length > 75) {
 		return -1;
 	}
 
+	// License plates have a ratio of 2:1, so set our search space accordingly
 	double start = x + floor(length / 0.6);
 	double end = x + ceil(length / 0.4);
 
+	// Iterate through the search space
 	for (int x_search = (int)start; x_search < min((int)end, edges.cols); x_search++) {
+		// Find the length of the line through this point
 		int len_line = find_length(&edges, x_search, y + (length / 2), false);
-		if (len_line < 0) {
+
+		// Skip this point if the length is zero
+		if (len_line <= 0) {
 			continue;
 		}
 
+		// Accept this line only if it's reasonably close in length to the other line
 		if (abs(len_line - length) < (double)length * 0.5) {
-			printf("%d %d\n", len_line, length);
+			// Set the line length and return
 			*parallel_length = max(len_line, length);
 			return x_search;
 		}
 	}
 
+	// Return a negative coordinate to indicate that no line was found
 	return -1;
-}
-
-bool overlaps(Rect r1, Rect r2) {
-	if (r1.x + r1.width < r2.x || r2.x + r2.width < r1.x) {
-		return false;
-	}
-
-	if (r1.y + r1.height < r2.y || r2.y + r2.height < r2.y) {
-		return false;
-	}
-
-	return true;
 }
 
 vector<Rect> find_candidate_regions(Mat gray) {
@@ -145,7 +180,10 @@ vector<Rect> find_candidate_regions(Mat gray) {
 			}
 		}
 	}
-	printf("Found %lu candidate regions\n", regions.size());
+
+	#ifdef DEBUG
+		printf("Found %lu candidate regions\n", regions.size());
+	#endif
 
 	vector<Rect> reduced_regions;
 	uint8_t *pruned = (uint8_t *)calloc(regions.size(), sizeof(uint8_t));
@@ -174,7 +212,9 @@ vector<Rect> find_candidate_regions(Mat gray) {
 		reduced_regions.push_back(region1);
 	}
 
-	printf("But I cut that down to %lu real candidate regions\n", reduced_regions.size());
+	#ifdef DEBUG
+		printf("But I cut that down to %lu real candidate regions\n", reduced_regions.size());
+	#endif
 
 	for (int i = 0; i < reduced_regions.size(); i++) {
 		Rect region = reduced_regions.at(i);

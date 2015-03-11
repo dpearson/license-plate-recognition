@@ -3,7 +3,7 @@
 //  license-plate-recognition
 //
 //  Created by David Pearson on 10/21/14.
-//  Copyright (c) 2014 David Pearson. All rights reserved.
+//  Copyright (c) 2014-2015 David Pearson. All rights reserved.
 //
 
 #ifndef __LPR__util
@@ -29,4 +29,6 @@ extern annotation *annotation_load(char *image_name);
 extern void annotation_free(annotation *an);
 
 extern cv::Mat read_img(const char *folder, const char *fname);
+
+extern bool overlaps(cv::Rect r1, cv::Rect r2);
 #endif

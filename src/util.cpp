@@ -3,7 +3,7 @@
 //  license-plate-recognition
 //
 //  Created by David Pearson on 10/21/14.
-//  Copyright (c) 2014 David Pearson. All rights reserved.
+//  Copyright (c) 2014-2015 David Pearson. All rights reserved.
 //
 
 #include <dirent.h>
@@ -65,4 +65,16 @@ annotation *annotation_load(char *image_name) {
 void annotation_free(annotation *an) {
 	free(an->plate_number);
 	free(an);
-};
+}
+
+bool overlaps(Rect r1, Rect r2) {
+	if (r1.x + r1.width < r2.x || r2.x + r2.width < r1.x) {
+		return false;
+	}
+
+	if (r1.y + r1.height < r2.y || r2.y + r2.height < r2.y) {
+		return false;
+	}
+
+	return true;
+}
