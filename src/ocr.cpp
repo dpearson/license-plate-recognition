@@ -86,7 +86,6 @@ char *get_plate_text(Mat *img_ptr) {
 
 	// Grab the text
 	char *plate_text = t->GetUTF8Text();
-	printf("%s\n", plate_text);
 
 	// Then dispose of the Tesseract API instance
 	t->End();
