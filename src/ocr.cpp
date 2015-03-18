@@ -9,6 +9,7 @@
 #include <opencv2/opencv.hpp>
 #include <tesseract/baseapi.h>
 
+#include "constants.h"
 #include "ocr.h"
 
 using namespace cv;
@@ -34,9 +35,9 @@ char *get_plate_text(Mat *img_ptr) {
 	Mat struct_elem = getStructuringElement(MORPH_RECT, Size(1, 5));
 	morphologyEx(edges_x, edges_x, MORPH_OPEN, struct_elem, Point(-1, -1), 1);
 
-	int min = img.rows;
-	int max = 0;
-	int thresh = 10;
+	int rmin = img.rows;
+	int rmax = 0;
+	int thresh = 12;
 	for (int i = 0; i < img.rows; i++) {
 		int count = 0;
 		for (int j = 0; j < img.cols; j++) {
@@ -46,28 +47,33 @@ char *get_plate_text(Mat *img_ptr) {
 			}
 		}
 
+		#ifdef DEBUG
+			printf("%d: %d\n", i, count);
+		#endif
+
 		if (count >= thresh) {
-			if (i < min) {
-				min = i;
+			if (i < rmin) {
+				rmin = i;
 			}
 
-			if (i > max) {
-				max = i;
+			if (i > rmax) {
+				rmax = i;
 			}
 		}
 	}
 
-	//printf("%d, %d\n", min, max);
-
 	// Chop off the top and bottom of the image to get a better look
 	// at the license plate number
-	img = img(Rect(5, min, img.cols - 10, max - min));
-	/*namedWindow("plate");
-	imshow("plate", img);
-	waitKey();*/
+	img = img(Rect(5, rmin, img.cols - 10, rmax - rmin));
 
 	// Perform thresholding to get a clean image for Tesseract
-	threshold(img, img, 150, 255, CV_THRESH_BINARY);
+	threshold(img, img, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+
+	#ifdef SHOW_IMAGES
+		namedWindow("plate");
+		imshow("plate", img);
+		waitKey();
+	#endif
 
 	// Create and initialize a Tesseract API instance
 	TessBaseAPI *t = new TessBaseAPI();
