@@ -77,7 +77,7 @@ char *get_plate_text(Mat *img_ptr) {
 
 	// Create and initialize a Tesseract API instance
 	TessBaseAPI *t = new TessBaseAPI();
-	t->Init(NULL, "eng", OEM_DEFAULT);
+	t->Init(NULL, "lp", OEM_DEFAULT);
 
 	// Assum that there's only one block of text in the image
 	// at this point
