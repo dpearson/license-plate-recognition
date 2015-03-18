@@ -87,7 +87,7 @@ int main(int argc, const char *argv[]) {
 	Mat plate = gray(max_region);
 
 	// Show the image if necessary
-	#ifdef SHOW_IMAGE
+	#ifdef SHOW_IMAGES
 		namedWindow("result");
 		imshow("result", plate);
 		waitKey();

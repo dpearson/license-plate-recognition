@@ -8,8 +8,8 @@
 
 // Uncomment these lines to show debug information
 
-// #define DEBUG true
-// #define SHOW_IMAGE true
+#define DEBUG true
+#define SHOW_IMAGES true
 
 #define HOG_WINDOW_WIDTH  128
 #define HOG_WINDOW_HEIGHT 64
