@@ -3,3 +3,6 @@
 train_data/annotate
 bin/train
 bin/recognize
+
+# Output images from debugging
+src/*.png
