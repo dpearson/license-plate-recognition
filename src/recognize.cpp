@@ -35,6 +35,7 @@ int main(int argc, const char *argv[]) {
 	// Convert the image to grayscale
 	Mat gray(img.cols, img.rows, img.type());
 	cvtColor(img, gray, CV_BGR2GRAY);
+	equalizeHist(gray, gray);
 	imwrite("out_gray.png", gray);
 
 	// Load the already-trained classifier
@@ -84,6 +85,7 @@ int main(int argc, const char *argv[]) {
 	}
 
 	// Isolate the best known region
+	cvtColor(img, gray, CV_BGR2GRAY);
 	Mat plate = gray(max_region);
 
 	// Show the image if necessary
@@ -96,14 +98,17 @@ int main(int argc, const char *argv[]) {
 	// But write out the image either way
 	imwrite("out_plate.png", plate);
 
-	// OCR the plate image
-	char *plate_text = get_plate_text(&plate);
+	try {
+		// OCR the plate image
+		char *plate_text = get_plate_text(&plate);
+		// And print out the resulting text
+		printf("%s\n", plate_text);
 
-	// And print out the resulting text
-	printf("%s\n", plate_text);
-
-	// Then free the plate text
-	delete [] plate_text;
+		// Then free the plate text
+		delete [] plate_text;
+	} catch (...) {
+		printf("error\n");
+	}
 
 	return 0;
 }

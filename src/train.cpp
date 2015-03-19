@@ -71,6 +71,7 @@ int main(int argc, const char *argv[]) {
 				// Convert the image to grayscale
 				Mat gray(img.cols, img.rows, img.type());
 				cvtColor(img, gray, CV_BGR2GRAY);
+				equalizeHist(gray, gray);
 				imwrite("out_gray.png", gray);
 
 				// Find candidate regions
