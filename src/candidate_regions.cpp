@@ -12,6 +12,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "constants.h"
+
 #include "util.h"
 
 using namespace cv;
