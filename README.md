@@ -31,6 +31,16 @@ On a recent version of Ubuntu, these dependencies can be installed by running:
 	cd src
 	../bin/recognize PATH_TO_LICENSE_PLATE_IMAGE
 
+#### Testing the recognition utility ####
+
+	cd src
+
+	# Move training images into ../train_data/images
+	# Move testing images into ../train_data/test_images
+
+	../bin/train
+	find ../train_data/test_images -type f -exec ../bin/recognize {} \;
+
 ### License ###
 
 The following third-party image datasets were used:
