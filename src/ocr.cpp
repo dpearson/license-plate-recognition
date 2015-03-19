@@ -74,6 +74,22 @@ char *get_plate_text(Mat *img_ptr) throw () {
 	// Perform thresholding to get a clean image for Tesseract
 	threshold(img, img, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
+	int count = 0;
+	for (int i = 0; i < img.rows; i++) {
+		for (int j = 0; j < img.cols; j++) {
+			uint8_t pixel = img.at<uint8_t>(i, j, 0);
+			if (pixel == 0) {
+				count--;
+			} else {
+				count++;
+			}
+		}
+	}
+
+	if (count < 0) {
+		bitwise_not(img, img);
+	}
+
 	#ifdef DEBUG
 		#ifdef SHOW_IMAGES
 			namedWindow("plate");
@@ -81,6 +97,8 @@ char *get_plate_text(Mat *img_ptr) throw () {
 			waitKey();
 		#endif
 	#endif
+
+	resize(img, img, Size(img.cols * 0.75, img.rows * 0.75));
 
 	// Create and initialize a Tesseract API instance
 	TessBaseAPI *t = new TessBaseAPI();
