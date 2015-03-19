@@ -69,10 +69,12 @@ char *get_plate_text(Mat *img_ptr) {
 	// Perform thresholding to get a clean image for Tesseract
 	threshold(img, img, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
-	#ifdef SHOW_IMAGES
-		namedWindow("plate");
-		imshow("plate", img);
-		waitKey();
+	#ifdef DEBUG
+		#ifdef SHOW_IMAGES
+			namedWindow("plate");
+			imshow("plate", img);
+			waitKey();
+		#endif
 	#endif
 
 	// Create and initialize a Tesseract API instance
