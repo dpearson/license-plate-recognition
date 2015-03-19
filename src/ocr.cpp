@@ -98,6 +98,10 @@ char *get_plate_text(Mat *img_ptr) {
 	// Then dispose of the Tesseract API instance
 	t->End();
 
+	// Remove all but the first line
+	char *newline_ptr = strchr(plate_text, '\n');
+	*newline_ptr = '\0';
+
 	// Return the plate text
 	return plate_text;
 }
