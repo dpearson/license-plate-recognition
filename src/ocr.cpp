@@ -15,7 +15,7 @@
 using namespace cv;
 using namespace tesseract;
 
-char *get_plate_text(Mat *img_ptr) {
+char *get_plate_text(Mat *img_ptr) throw () {
 	// Dereference the image pointer
 	Mat img = *img_ptr;
 
@@ -64,7 +64,12 @@ char *get_plate_text(Mat *img_ptr) {
 
 	// Chop off the top and bottom of the image to get a better look
 	// at the license plate number
-	img = img(Rect(5, rmin, img.cols - 10, std::min(rmax - rmin + 5, img.rows - rmin - 1)));
+	int height = std::min(rmax - rmin + 5, img.rows - rmin - 1);
+	if (height >= 10) {
+		img = img(Rect(5, rmin, img.cols - 10, height));
+	} else {
+		img = img(Rect(5, img.rows / 5, img.cols - 10, img.rows * 4 / 5));
+	}
 
 	// Perform thresholding to get a clean image for Tesseract
 	threshold(img, img, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);

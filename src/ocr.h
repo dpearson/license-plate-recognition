@@ -11,6 +11,6 @@
 
 #include <opencv2/opencv.hpp>
 
-extern char *get_plate_text(cv::Mat *img_ptr);
+extern char *get_plate_text(cv::Mat *img_ptr) throw ();
 
 #endif
