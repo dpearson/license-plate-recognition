@@ -95,6 +95,8 @@ char *get_plate_text(Mat *img_ptr) throw () {
 			namedWindow("plate");
 			imshow("plate", img);
 			waitKey();
+
+			imwrite("plate_text.png", img);
 		#endif
 	#endif
 
